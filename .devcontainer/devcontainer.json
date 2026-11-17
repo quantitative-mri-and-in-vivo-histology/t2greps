@@ -1,0 +1,22 @@
+// CPU-only dev container (t2greps needs no GPU).
+{
+  "name": "t2greps",
+  "build": { "dockerfile": "Dockerfile", "context": "..", "args": { "TZ": "Europe/Berlin" } },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "mounts": [
+    "source=claude-code-config,target=/home/node/.claude,type=volume",
+    "source=${localEnv:HOME}/.ssh,target=/home/node/.ssh-host,type=bind,readonly"
+  ],
+  "containerEnv": { "CLAUDE_CONFIG_DIR": "/home/node/.claude", "PYTHONPATH": "/workspace/src" },
+  "runArgs": ["--shm-size=4g"],
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code", "ms-python.python", "ms-python.vscode-pylance",
+                     "ms-python.debugpy", "ms-toolsai.jupyter", "charliermarsh.ruff", "eamodio.gitlens"]
+    }
+  },
+  "remoteUser": "node",
+  "postCreateCommand": "/usr/local/bin/post-create.sh",
+  "postStartCommand": "npm update -g @anthropic-ai/claude-code"
+}
