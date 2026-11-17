@@ -1,4 +1,6 @@
-"""Generate tests/data/pyepg_reference.npz with the C++ EPG of the MagPhsT2 fork.
+"""Generate pyepg_reference.npz (next to this file) with the C++ EPG of the MagPhsT2 fork.
+
+    python tests/data/make_reference_data.py tests/data/pyepg_reference.npz
 
 Needs ``pyepg`` built from MagPhsT2 (pip install path/to/MagPhsT2). Run once; the
 tests then compare against the stored values without any C++ build.
