@@ -63,7 +63,8 @@ The signal is the steady state of the extended phase graph of a GRE sequence wit
 φₙ = Q·n(n+1)/2. In a frame that rotates with this phase every TR applies the same linear map, so the
 steady state solves one linear system. It couples neighbouring dephasing orders only and reduces to
 a scalar complex continued fraction over the orders plus a 3×3 solve for order 0. Orders up to
-max(16, ⌈8·T2/TR⌉) are kept (relative error < 1e-8).
+max(16, ⌈16·T2/TR⌉) are kept. This truncation rule is a heuristic based on relaxation. Over flip angles
+3–90°, increments up to 20° and TR 3–50 ms the relative error was below 2e-15.
 
 The fit minimises the squared complex residual. The amplitude is solved in closed form for given T1 and T2;
 T1 and T2 are fitted in log space with Levenberg–Marquardt using exact derivatives (dual numbers through

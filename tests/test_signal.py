@@ -57,12 +57,16 @@ def test_adaptive_orders_vs_many_orders():
     n = 400
     T2 = np.exp(rng.uniform(np.log(5), np.log(1000), n))
     T1 = np.minimum(T2 * np.exp(rng.uniform(0, np.log(40), n)), 10000)
-    fa = rng.uniform(3, 40, n)
+    fa = rng.uniform(3, 90, n)
     q = rng.choice([0.5, 1, 2, 3, 5, 10, 20], n)
-    TR = rng.choice([5.0, 7.0, 10.8, 13.7, 20.0], n)
+    TR = rng.choice([3.0, 5.0, 7.0, 10.8, 13.7, 20.0, 50.0], n)
     a = t2greps.signal(T1, T2, fa, q, TR)
-    b = t2greps.signal(T1, T2, fa, q, TR, n_states=8192)
-    assert np.max(np.abs(a - b) / np.abs(b)) < 5e-8
+    b = t2greps.signal(T1, T2, fa, q, TR, n_states=16384)
+    assert np.max(np.abs(a - b) / np.abs(b)) < 1e-13
+    # Case where the earlier factor 8 gave 3.4e-8 (review of the method note).
+    c = t2greps.signal(3000.0, 120.0, 10.0, 4.0, 10.8)
+    d = t2greps.signal(3000.0, 120.0, 10.0, 4.0, 10.8, n_states=16384)
+    assert abs(c - d) / abs(d) < 1e-13
 
 
 def test_measured_convention_matches_equation_grep():

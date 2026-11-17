@@ -6,10 +6,11 @@ with this phase, every TR applies the same linear map, so the steady state is
 the solution of one linear system. That system couples neighbouring dephasing
 orders only and reduces to a scalar complex continued fraction over the orders
 plus a 3x3 solve for order 0. No stepping and no convergence tolerance are
-involved. Order k carries weight of at most about exp(-k TR / T2), so the number
-of orders kept is chosen per evaluation as max(16, ceil(8 T2 / TR)); this keeps
-the relative error below ~1e-8 (checked for flip angles 3-40 deg, increments up
-to 20 deg, TR 5-20 ms, T2 5-1000 ms).
+involved. Order k has spent at least k TRs as transverse magnetisation, which
+motivates a relaxation-based truncation rule: max(16, ceil(16 T2 / TR)) orders are
+kept per evaluation. This is a heuristic, not a bound. Against 16384 orders the
+relative error was below 2e-15 for flip angles 3-90 deg, increments 0.5-20 deg,
+TR 3-50 ms and T2 5-1000 ms.
 
 :func:`signal_stepped` is a port of ``EPG::StepsToSS`` from MagPhsT2/EPGpp: it
 steps TR by TR from equilibrium and stops when the magnitude changes by less
@@ -28,7 +29,7 @@ from numba import njit, prange
 
 __all__ = ["signal", "signal_stepped", "phase_table", "n_orders"]
 
-ORDERS_PER_T2 = 8.0  # orders kept per T2/TR: relative truncation error < ~1e-8
+ORDERS_PER_T2 = 16.0  # orders kept per T2/TR (heuristic); measured relative error < 2e-15
 MIN_ORDERS = 16
 
 
