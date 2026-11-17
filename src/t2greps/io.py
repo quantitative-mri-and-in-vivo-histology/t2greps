@@ -63,7 +63,8 @@ def fit_nifti(
     verbose=True,
     **fit_kwargs,
 ):
-    """Fit NIfTI images and write ``<prefix>T1.nii.gz``, ``T2``, ``amplitude`` (T1/T2 in ms).
+    """Fit NIfTI images and write ``<prefix>T1.nii.gz``, ``T2``, ``amplitude`` (T1/T2 in ms) and
+    ``no_bound_mask`` (1 where no parameter ended on a bound).
 
     With ``diagnostics=True`` also writes ``cost``, ``n_iter`` and ``status`` maps.
     Further keyword arguments go to :func:`t2greps.fit`. Returns (paths, FitResult).
@@ -78,7 +79,9 @@ def fit_nifti(
         print(f"t2greps: {res.summary()}")
     os.makedirs(output_dir, exist_ok=True)
     maps = {"T1": res.T1, "T2": res.T2, "amplitude": res.amplitude}
+    paths = {"no_bound_mask": save_map(res.no_bound, m, affine, os.path.join(output_dir, f"{prefix}no_bound_mask.nii.gz"),
+                                       dtype=np.uint8)}
     if diagnostics:
         maps.update(cost=res.cost, n_iter=res.n_iter, status=res.status)
-    paths = {k: save_map(v, m, affine, os.path.join(output_dir, f"{prefix}{k}.nii.gz")) for k, v in maps.items()}
+    paths.update({k: save_map(v, m, affine, os.path.join(output_dir, f"{prefix}{k}.nii.gz")) for k, v in maps.items()})
     return paths, res

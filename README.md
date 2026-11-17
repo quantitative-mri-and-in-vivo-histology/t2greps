@@ -22,7 +22,7 @@ Command line:
 t2greps-fit magnitude.nii.gz phase.nii.gz \
     --tr 10.8 --flip-angle 20 --phase-increments 1 2 4 1.5 3 5 \
     --mask brain_mask.nii.gz --b1 B1_map.nii.gz --b1-units fraction \
-    -o out/            # writes out/T1.nii.gz, T2.nii.gz (ms), amplitude.nii.gz
+    -o out/            # writes out/T1.nii.gz, T2.nii.gz (ms), amplitude.nii.gz, no_bound_mask.nii.gz
 ```
 
 Python:
@@ -36,7 +36,7 @@ paths, res = t2greps.fit_nifti("magnitude.nii.gz", "phase.nii.gz", tr=10.8, flip
 
 # arrays: data = magnitude * exp(1j * phase), shape (n_voxels, n_increments)
 res = t2greps.fit(data, flip_angle_per_voxel, tr=10.8, phase_increments=[1, 2, 4, 1.5, 3, 5])
-res.T1, res.T2, res.amplitude, res.cost, res.n_iter, res.converged
+res.T1, res.T2, res.amplitude, res.no_bound, res.cost, res.n_iter, res.converged
 
 # signal model
 s = t2greps.signal(T1=1000, T2=80, flip_angle=20, phase_increment=2, tr=10.8)   # complex
@@ -50,6 +50,12 @@ Inputs:
 * `b1`: actual / nominal flip angle **in percent** (100 = nominal, default, as MagPhsT2), or as a fraction
   (1 = nominal) with `b1_units="fraction"` / `--b1-units fraction`.
 * `tr`: time between excitations in ms (`RepetitionTimeExcitation` × 1000), not the volume TR.
+
+Outputs: `T1`, `T2` (ms), `amplitude`, and `no_bound_mask`: 1 where no parameter ended on one of its
+bounds (T1 1–10000 ms, T2 1–1000 ms, amplitude 1–50000 by default). Where a bound is hit the values are
+less reliable; in particular with T2 at its lower bound the signal no longer depends on T1, so T1 (and
+amplitude) are undetermined there. Use the mask to exclude such voxels from statistics.
+`--diagnostics` additionally writes `cost`, `n_iter` and `status` maps.
 
 ## Method
 

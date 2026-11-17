@@ -43,6 +43,7 @@ class FitResult:
     cost: np.ndarray  # sum of squared residuals (real and imaginary parts)
     n_iter: np.ndarray
     status: np.ndarray  # see Status
+    no_bound: np.ndarray  # True where no parameter ended on one of its bounds
 
     @property
     def converged(self):
@@ -54,7 +55,8 @@ class FitResult:
             f"{len(it)} voxels | iterations median {np.median(it):.0f}, 99th pct {np.percentile(it, 99):.0f}, "
             f"max {it.max()} | converged {np.mean(self.converged):.2%}, "
             f"no decrease {np.mean(self.status == Status.NO_DECREASE):.2%}, "
-            f"max_iter {np.mean(self.status == Status.MAX_ITER):.2%}"
+            f"max_iter {np.mean(self.status == Status.MAX_ITER):.2%} | "
+            f"no parameter on a bound {np.mean(self.no_bound):.2%}"
         )
 
 
@@ -206,7 +208,9 @@ def fit(
     tr:               repetition time in ms.
     phase_increments: RF phase increments in degrees, one per column of ``data``.
 
-    Start values and bounds default to those of MagPhsT2.
+    Start values and bounds default to those of MagPhsT2. ``FitResult.no_bound`` marks voxels
+    where no parameter ended on a bound; elsewhere at least one parameter is limited by its
+    bound (e.g. T2 at its lower bound, where T1 is undetermined), so values are less reliable.
     """
     data = np.ascontiguousarray(np.atleast_2d(data), np.complex128)
     n = data.shape[0]
@@ -230,4 +234,7 @@ def fit(
     inv = np.empty_like(order)
     inv[order] = np.arange(n)
     out, n_iter, status = out[inv], n_iter[inv], status[inv]
-    return FitResult(out[:, 0], out[:, 1], out[:, 2], out[:, 3], n_iter, status)
+    no_bound = np.ones(n, bool)
+    for col, (lo, hi) in ((0, T1_bounds), (1, T2_bounds), (2, amplitude_bounds)):
+        no_bound &= (out[:, col] > lo * (1 + 1e-6)) & (out[:, col] < hi * (1 - 1e-6))
+    return FitResult(out[:, 0], out[:, 1], out[:, 2], out[:, 3], n_iter, status, no_bound)
