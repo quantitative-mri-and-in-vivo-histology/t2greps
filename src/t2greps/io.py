@@ -13,12 +13,13 @@ from .fit import fit
 __all__ = ["load_data", "fit_nifti", "save_map"]
 
 
-def load_data(magnitude, phase, mask=None, b1=None, flip_angle=20.0, b1_units="fraction"):
+def load_data(magnitude, phase, mask=None, b1=None, flip_angle=20.0, b1_units="percent"):
     """Assemble the fit input from NIfTI files.
 
     magnitude, phase: 4D images (one volume per phase increment), phase in radians.
     mask:  3D image, voxels > 0.5 are fitted (default: all voxels).
-    b1:    3D map of actual / nominal flip angle, as a fraction (1 = nominal) or in percent.
+    b1:    3D map of actual / nominal flip angle, in percent (100 = nominal, default, as MagPhsT2)
+           or as a fraction (1 = nominal) with b1_units="fraction".
 
     Returns ``data`` (n_voxels, n_increments) complex, flip angles per voxel, the boolean
     mask and the affine of the magnitude image.
@@ -56,7 +57,7 @@ def fit_nifti(
     output_dir,
     mask=None,
     b1=None,
-    b1_units="fraction",
+    b1_units="percent",
     prefix="",
     diagnostics=False,
     verbose=True,

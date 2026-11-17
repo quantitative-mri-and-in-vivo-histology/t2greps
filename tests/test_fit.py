@@ -98,7 +98,7 @@ def nifti_case(tmp_path):
 def test_fit_nifti(nifti_case):
     p, T1, T2, mask, tmp = nifti_case
     out, res = t2greps.fit_nifti(p["mag"], p["phase"], TR, 20.0, PHI, str(tmp / "out"), mask=p["mask"],
-                                 b1=p["b1"], diagnostics=True, verbose=False)
+                                 b1=p["b1_percent"], diagnostics=True, verbose=False)  # default: percent
     assert set(out) == {"T1", "T2", "amplitude", "cost", "n_iter", "status"}
     t1 = nib.load(out["T1"]).get_fdata()
     assert t1[0, 0, 0] == 0  # outside mask

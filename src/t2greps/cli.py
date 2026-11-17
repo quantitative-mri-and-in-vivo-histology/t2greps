@@ -20,7 +20,8 @@ def main(argv=None):
                    help="RF phase increments [deg], in volume order")
     p.add_argument("--mask", default=None, help="3D mask; voxels > 0.5 are fitted (default: all)")
     p.add_argument("--b1", default=None, help="3D B1 map (actual / nominal flip angle)")
-    p.add_argument("--b1-units", choices=["fraction", "percent"], default="fraction")
+    p.add_argument("--b1-units", choices=["percent", "fraction"], default="percent",
+                   help="percent: 100 = nominal (default); fraction: 1 = nominal")
     p.add_argument("-o", "--output-dir", required=True)
     p.add_argument("--prefix", default="", help="prefix for output file names")
     p.add_argument("--diagnostics", action="store_true", help="also write cost, n_iter and status maps")

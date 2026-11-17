@@ -47,7 +47,8 @@ Inputs:
 * `magnitude`, `phase`: 4D, one volume per phase increment, **background-corrected** (as produced by the
   traveling-heads preprocessing: the ±increment pairs combined). Phase in radians.
 * `phase_increments`: degrees, **in volume order** (UKE/DZNE 3D-EPI: `1 2 4 1.5 3 5`).
-* `b1`: actual / nominal flip angle, as a fraction (1 = nominal) or in percent (`--b1-units percent`).
+* `b1`: actual / nominal flip angle **in percent** (100 = nominal, default, as MagPhsT2), or as a fraction
+  (1 = nominal) with `b1_units="fraction"` / `--b1-units fraction`.
 * `tr`: time between excitations in ms (`RepetitionTimeExcitation` × 1000), not the volume TR.
 
 ## Method
