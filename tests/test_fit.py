@@ -1,11 +1,10 @@
-"""Fit: recovery, derivatives, bounds, threads, NIfTI I/O and the MagPhsT2-compatible wrapper."""
+"""Fit: recovery, derivatives, bounds, threads and NIfTI I/O."""
 
 import nibabel as nib
 import numpy as np
 import pytest
 
 import t2greps
-from t2greps.compat import cal_T2T1AM
 from t2greps.epg import flip_coefficients, phase_table, signal_dual
 
 PHI = [1.0, 2.0, 4.0, 1.5, 3.0, 5.0]
@@ -108,10 +107,10 @@ def test_fit_nifti(nifti_case):
     assert np.max(np.abs(nib.load(out["T2"]).get_fdata()[mask] - T2[mask]) / T2[mask]) < 1e-4
 
 
-def test_compat_cal_T2T1AM(nifti_case):
+def test_b1_units_percent_equals_fraction(nifti_case):
     p, T1, T2, mask, tmp = nifti_case
-    cal_T2T1AM(p["mag"], p["phase"], p["mask"], p["b1_percent"], TR, 20.0, PHI, outputdir=str(tmp))
-    for name in ("T1_", "T2_", "Am_"):
-        assert (tmp / f"{name}.nii.gz").exists()
-    t2 = nib.load(tmp / "T2_.nii.gz").get_fdata()
-    assert np.max(np.abs(t2[mask] - T2[mask]) / T2[mask]) < 1e-4
+    _, a = t2greps.fit_nifti(p["mag"], p["phase"], TR, 20.0, PHI, str(tmp / "a"), mask=p["mask"], b1=p["b1"],
+                             b1_units="fraction", verbose=False)
+    _, b = t2greps.fit_nifti(p["mag"], p["phase"], TR, 20.0, PHI, str(tmp / "b"), mask=p["mask"],
+                             b1=p["b1_percent"], b1_units="percent", verbose=False)
+    assert np.allclose(a.T2, b.T2, rtol=1e-9) and np.allclose(a.T1, b.T1, rtol=1e-9)

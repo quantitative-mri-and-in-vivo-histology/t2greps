@@ -50,17 +50,6 @@ Inputs:
 * `b1`: actual / nominal flip angle, as a fraction (1 = nominal) or in percent (`--b1-units percent`).
 * `tr`: time between excitations in ms (`RepetitionTimeExcitation` × 1000), not the volume TR.
 
-### Drop-in for MagPhsT2
-
-```python
-from t2greps.compat import cal_T2T1AM      # instead of: from T2T1AM import cal_T2T1AM
-cal_T2T1AM(magn_file, phas_file, mask_file, b1_file, TR, FA, phi, outputdir=out)
-```
-
-Same arguments (TR in ms, B1 in percent) and output files (`T1_.nii.gz`, `T2_.nii.gz`, `Am_.nii.gz`).
-`python -m t2greps.compat magn phas mask b1 -tr 10.8 -fa 20 -phi 1 2 4 1.5 3 5 -outputdir out`
-mirrors `python T2T1AM.py ...`.
-
 ## Method
 
 The signal is the steady state of the extended phase graph of a GRE sequence with RF phase

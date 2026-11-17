@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 import t2greps
-from t2greps.compat import greps_signal_pyepg
 
 REF = np.load(Path(__file__).parent / "data" / "pyepg_reference.npz")
 ARGS = [REF[k] for k in ("T1", "T2", "flip_angle", "phase_increment", "tr")]
@@ -66,9 +65,10 @@ def test_adaptive_orders_vs_many_orders():
     assert np.max(np.abs(a - b) / np.abs(b)) < 5e-8
 
 
-def test_compat_signal_matches_equation_grep_convention():
+def test_measured_convention_matches_equation_grep():
+    """equation_grep compared data with |s| exp(-i (angle(s) - pi/2)), i.e. conj of our signal."""
     i = 0
-    mag, ph = greps_signal_pyepg(*(a[i] for a in ARGS))
+    s = t2greps.signal(*(a[i] for a in ARGS))
     s_cpp = REF["s_tol1e-13"][i]
-    assert abs(mag - abs(s_cpp)) < 2e-6
-    assert abs(np.exp(1j * ph) - np.exp(1j * (np.angle(s_cpp) - np.pi / 2))) < 1e-4
+    assert abs(abs(s) - abs(s_cpp)) < 2e-6
+    assert abs(np.exp(1j * np.angle(s)) - np.exp(1j * (np.angle(s_cpp) - np.pi / 2))) < 1e-4
