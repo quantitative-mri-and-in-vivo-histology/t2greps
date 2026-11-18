@@ -5,8 +5,7 @@ magnitude and phase of GRE images acquired with several quadratic RF phase incre
 
 A replacement for [MagPhsT2](https://github.com/mrphysics-bonn/MagPhsT2) (`T2T1AM.py`). It uses the same
 signal model, data, start values and bounds, and computes the steady state exactly instead of
-simulating TR by TR. A whole brain takes about 15–20 s on a 16-core CPU, versus hours for MagPhsT2.
-Dependencies: numpy, numba, nibabel.
+simulating TR by TR.
 
 ## Install
 
@@ -14,25 +13,40 @@ Dependencies: numpy, numba, nibabel.
 pip install path/to/t2greps        # or: pip install -e . for development
 ```
 
-## Use
-
-Command line:
+## Command line
 
 ```bash
 t2greps-fit magnitude.nii.gz phase.nii.gz \
     --tr 10.8 --flip-angle 20 --phase-increments 1 2 4 1.5 3 5 \
     --mask brain_mask.nii.gz --b1 B1_map.nii.gz --b1-units fraction \
-    -o out/            # writes out/T1.nii.gz, T2.nii.gz (ms), amplitude.nii.gz, no_bound_mask.nii.gz
+    -o out/
 ```
 
-Python:
+Inputs:
+
+* `magnitude`, `phase`: 4D, one volume per phase increment, **background-corrected** (as produced by the
+  traveling-heads preprocessing: the ±increment pairs combined). Phase in radians.
+* `phase_increments`: degrees, **in volume order**.
+* `b1`: actual / nominal flip angle **in percent** (100 = nominal, default), or as a fraction
+  (1 = nominal) with `--b1-units fraction`.
+* `tr`: time between excitations in ms (`RepetitionTimeExcitation` × 1000).
+
+Outputs, written to the output directory (with `--prefix` in front of each name):
+
+* `T1.nii.gz`, `T2.nii.gz`: relaxation times in ms.
+* `amplitude.nii.gz`: signal amplitude A (proton density and receive sensitivity).
+* `no_bound_mask.nii.gz`: 1 where no parameter ended on one of its bounds (T1 1–10000 ms, T2 1–1000 ms,
+  amplitude 1–50000 by default). Where a bound is hit the values are less reliable. With T2 at its lower
+  bound the signal no longer depends on T1, so T1 and amplitude are undetermined there. Use the mask to
+  exclude such voxels from statistics.
+* `cost.nii.gz`, `n_iter.nii.gz`, `status.nii.gz`: only with `--diagnostics`.
+
+## Python API
+
+`fit` works on arrays, and `signal` evaluates the signal model.
 
 ```python
 import t2greps
-
-paths, res = t2greps.fit_nifti("magnitude.nii.gz", "phase.nii.gz", tr=10.8, flip_angle=20,
-                               phase_increments=[1, 2, 4, 1.5, 3, 5], output_dir="out",
-                               mask="brain_mask.nii.gz", b1="B1_map.nii.gz", b1_units="fraction")
 
 # arrays: data = magnitude * exp(1j * phase), shape (n_voxels, n_increments)
 res = t2greps.fit(data, flip_angle_per_voxel, tr=10.8, phase_increments=[1, 2, 4, 1.5, 3, 5])
@@ -42,60 +56,35 @@ res.T1, res.T2, res.amplitude, res.no_bound, res.cost, res.n_iter, res.converged
 s = t2greps.signal(T1=1000, T2=80, flip_angle=20, phase_increment=2, tr=10.8)   # complex
 ```
 
-Inputs:
-
-* `magnitude`, `phase`: 4D, one volume per phase increment, **background-corrected** (as produced by the
-  traveling-heads preprocessing: the ±increment pairs combined). Phase in radians.
-* `phase_increments`: degrees, **in volume order** (UKE/DZNE 3D-EPI: `1 2 4 1.5 3 5`).
-* `b1`: actual / nominal flip angle **in percent** (100 = nominal, default, as MagPhsT2), or as a fraction
-  (1 = nominal) with `b1_units="fraction"` / `--b1-units fraction`.
-* `tr`: time between excitations in ms (`RepetitionTimeExcitation` × 1000), not the volume TR.
-
-Outputs: `T1`, `T2` (ms), `amplitude`, and `no_bound_mask`: 1 where no parameter ended on one of its
-bounds (T1 1–10000 ms, T2 1–1000 ms, amplitude 1–50000 by default). Where a bound is hit the values are
-less reliable; in particular with T2 at its lower bound the signal no longer depends on T1, so T1 (and
-amplitude) are undetermined there. Use the mask to exclude such voxels from statistics.
-`--diagnostics` additionally writes `cost`, `n_iter` and `status` maps.
-
 ## Method
 
-The signal is the steady state of the extended phase graph of a GRE sequence with RF phase
-φₙ = Q·n(n+1)/2. In a frame that rotates with this phase every TR applies the same linear map, so the
-steady state solves one linear system. It couples neighbouring dephasing orders only and reduces to
-a scalar complex continued fraction over the orders plus a 3×3 solve for order 0. Orders up to
-max(16, ⌈12·T2/TR⌉) are kept. This truncation rule is a heuristic based on relaxation. Over flip angles
-3–90°, increments up to 20° and TR 3–50 ms the relative error was below 1e-11.
+As in Wang et al. (2024), T1, T2 and an amplitude A are fitted by minimizing
+Σ|S_meas − A·S(T2, T1)|² over the phase increments. The model signal S is the steady state of the
+extended phase graph (EPG) (Weigel, 2015) with RF phase φₙ = Δφ·n(n+1)/2.
 
-The fit minimises the squared complex residual. The amplitude is solved in closed form for given T1 and T2;
-T1 and T2 are fitted in log space with Levenberg–Marquardt using exact derivatives (dual numbers through
-the recursion). Each voxel iterates to convergence (median about 8 iterations), and voxels run in parallel.
-Results do not depend on the number of threads.
+[MagPhsT2](https://github.com/mrphysics-bonn/MagPhsT2) simulates the EPG with
+[EPGpp](https://github.com/mrphysics-bonn/EPGpp) TR by TR until the signal stops changing. t2greps computes the steady state
+directly. Following Ganter (2006), the magnetization at each dephasing order k is rotated by a phase
+that depends on n and k. Then every TR applies the same map x ↦ Mx + b, and the steady state is
+x = (I − M)⁻¹b. It is computed by a recursion from K = max(16, ⌈12·T2/TR⌉) down to k = 0, with a
+relative error below 1e-11.
 
-`t2greps.signal_stepped` reproduces MagPhsT2's TR-by-TR simulation (identical to its C++ code to 1e-12),
-for comparisons.
+A follows in closed form for given T1 and T2. T1 and T2 are fitted with Levenberg–Marquardt (Marquardt, 1963) and exact
+derivatives, with voxels in parallel.
 
-## Relation to MagPhsT2 results
+## References
 
-MagPhsT2 stops its simulation when |F0| changes by less than a tolerance per TR. That under-converges,
-and for long T2 it can stop at a turning point of the oscillating approach to steady state. The bias
-grows with T2 and with the tolerance:
+* Ganter C. Steady state of gradient echo sequences with radiofrequency phase cycling: analytical
+  solution, contrast enhancement with partial spoiling. *Magn Reson Med* 2006;55:98–107.
+  [doi:10.1002/mrm.20736](https://doi.org/10.1002/mrm.20736)
+* Marquardt DW. An algorithm for least-squares estimation of nonlinear parameters.
+  *J Soc Ind Appl Math* 1963;11:431–441. [doi:10.1137/0111030](https://doi.org/10.1137/0111030)
+* Wang D, Stirnberg R, Stöcker T. Improved gradient echo magnitude- and phase-based mapping of T2
+  using multiple RF spoiling increments at 3T and 7T. *Magn Reson Med* 2024;92:2328–2342.
+  [doi:10.1002/mrm.30217](https://doi.org/10.1002/mrm.30217)
+* Weigel M. Extended phase graphs: dephasing, RF pulses, and echoes – pure and simple.
+  *J Magn Reson Imaging* 2015;41:266–295. [doi:10.1002/jmri.24619](https://doi.org/10.1002/jmri.24619)
 
-| MagPhsT2 tolerance | used in | agreement with t2greps (ROI, 2 subjects) |
-|---|---|---|
-| 1e-8 (until Oct 2024) | original code | WM: T2 99–100 %, T1 94–99 % within 1 %; GM: T2 95–97 %, T1 82–88 % |
-| 1e-6 (since commit `e84e6bb`) | traveling-heads maps | WM T1 ≈ −1 %, GM T1 up to +20 % (IQR), CSF T1 +60–120 % |
+## License
 
-Where the two disagree, the t2greps solution fits the data better in ≥ 99.7 % of voxels (exact model).
-In CSF and low-signal voxels T1 is poorly determined, so both fits often end at a parameter bound.
-
-## Validation
-
-`tests/` compare against signals from MagPhsT2's C++ EPG code (`tests/data/pyepg_reference.npz`,
-generated by `tests/data/make_reference_data.py`). They check: steady state vs converged stepping, stepping
-vs C++ at tolerances 1e-6 and 1e-8, the Ernst limit, derivatives, fit recovery and local optimality,
-bounds, thread independence, and NIfTI I/O. Whole-brain validation on in vivo data lives in the
-`t2_speedup` workspace.
-
-```bash
-pytest
-```
+MIT, see [LICENSE](LICENSE).
