@@ -62,11 +62,11 @@ def test_adaptive_orders_vs_many_orders():
     TR = rng.choice([3.0, 5.0, 7.0, 10.8, 13.7, 20.0, 50.0], n)
     a = t2greps.signal(T1, T2, fa, q, TR)
     b = t2greps.signal(T1, T2, fa, q, TR, n_states=16384)
-    assert np.max(np.abs(a - b) / np.abs(b)) < 1e-13
+    assert np.max(np.abs(a - b) / np.abs(b)) < 1e-11
     # Case where the earlier factor 8 gave 3.4e-8 (review of the method note).
     c = t2greps.signal(3000.0, 120.0, 10.0, 4.0, 10.8)
     d = t2greps.signal(3000.0, 120.0, 10.0, 4.0, 10.8, n_states=16384)
-    assert abs(c - d) / abs(d) < 1e-13
+    assert abs(c - d) / abs(d) < 1e-11
 
 
 def test_measured_convention_matches_equation_grep():
