@@ -33,6 +33,7 @@ class Status:
     CONVERGED_STEP = 2  # step < xtol, or every parameter held on a bound
     NO_DECREASE = 3  # damping grew without finding a lower cost
     MAX_ITER = 4  # max_iter reached
+    INVALID = 5  # flip angle not positive (e.g. B1 = 0); not fitted, maps are NaN
 
 
 @dataclass
@@ -55,7 +56,8 @@ class FitResult:
             f"{len(it)} voxels | iterations median {np.median(it):.0f}, 99th pct {np.percentile(it, 99):.0f}, "
             f"max {it.max()} | converged {np.mean(self.converged):.2%}, "
             f"no decrease {np.mean(self.status == Status.NO_DECREASE):.2%}, "
-            f"max_iter {np.mean(self.status == Status.MAX_ITER):.2%} | "
+            f"max_iter {np.mean(self.status == Status.MAX_ITER):.2%}, "
+            f"invalid {np.mean(self.status == Status.INVALID):.2%} | "
             f"no parameter on a bound {np.mean(self.no_bound):.2%}"
         )
 
@@ -211,6 +213,8 @@ def fit(
     Start values and bounds default to those of MagPhsT2. ``FitResult.no_bound`` marks voxels
     where no parameter ended on a bound; elsewhere at least one parameter is limited by its
     bound (e.g. T2 at its lower bound, where T1 is undetermined), so values are less reliable.
+    Voxels with a flip angle that is not positive (e.g. B1 = 0) are not fitted: their maps are
+    NaN and their status is ``Status.INVALID``.
     """
     data = np.ascontiguousarray(np.atleast_2d(data), np.complex128)
     n = data.shape[0]
@@ -221,19 +225,22 @@ def fit(
         numba.set_num_threads(n_threads)
     # Spread slow voxels (CSF, edges) evenly over the threads. Voxels are independent,
     # so the order does not affect any result.
-    order = np.random.default_rng(0).permutation(n)
-    out = np.empty((n, 4))
-    n_iter = np.empty(n, np.int32)
-    status = np.empty(n, np.int8)
+    valid = np.flatnonzero(np.isfinite(fa) & (fa > 0))
+    order = valid[np.random.default_rng(0).permutation(valid.size)]
+    m = order.size
+    res = np.empty((m, 4))
+    res_iter = np.empty(m, np.int32)
+    res_status = np.empty(m, np.int8)
     _fit_all(
         data[order], fa[order], phase_table(phase_increments, max_orders(T2_bounds[1], tr) + 2), float(tr),
         np.log([T1_start, T2_start]), np.log([T1_bounds[0], T2_bounds[0]]),
         np.log([T1_bounds[1], T2_bounds[1]]), float(amplitude_bounds[0]), float(amplitude_bounds[1]),
-        int(max_iter), float(ftol), float(xtol), out, n_iter, status,
+        int(max_iter), float(ftol), float(xtol), res, res_iter, res_status,
     )
-    inv = np.empty_like(order)
-    inv[order] = np.arange(n)
-    out, n_iter, status = out[inv], n_iter[inv], status[inv]
+    out = np.full((n, 4), np.nan)
+    n_iter = np.zeros(n, np.int32)
+    status = np.full(n, Status.INVALID, np.int8)
+    out[order], n_iter[order], status[order] = res, res_iter, res_status
     no_bound = np.ones(n, bool)
     for col, (lo, hi) in ((0, T1_bounds), (1, T2_bounds), (2, amplitude_bounds)):
         no_bound &= (out[:, col] > lo * (1 + 1e-6)) & (out[:, col] < hi * (1 - 1e-6))

@@ -73,6 +73,22 @@ def test_bounds_respected():
     assert 0 < res.no_bound.mean() < 1  # low SNR: some voxels hit a bound, most do not
 
 
+def test_invalid_flip_angle_not_fitted():
+    """Voxels with flip angle <= 0 (e.g. B1 = 0) are marked invalid; the others are unaffected."""
+    y, fa, *_ = synthetic(50, seed=3)
+    bad = np.array([3, 17, 40])
+    fa_bad = fa.copy()
+    fa_bad[bad] = [0.0, -5.0, np.nan]
+    ref = t2greps.fit(y, fa, TR, PHI)
+    res = t2greps.fit(y, fa_bad, TR, PHI)
+    assert np.all(res.status[bad] == t2greps.Status.INVALID)
+    for v in (res.T1, res.T2, res.amplitude, res.cost):
+        assert np.all(np.isnan(v[bad]))
+    assert not res.no_bound[bad].any() and not res.converged[bad].any()
+    ok = np.setdiff1d(np.arange(50), bad)
+    assert np.array_equal(res.T2[ok], ref.T2[ok]) and np.array_equal(res.T1[ok], ref.T1[ok])
+
+
 def test_results_independent_of_threads():
     y, fa, *_ = synthetic(2000, snr=30, seed=3)
     a = t2greps.fit(y, fa, TR, PHI, n_threads=1)
