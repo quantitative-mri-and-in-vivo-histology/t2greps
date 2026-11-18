@@ -66,8 +66,8 @@ extended phase graph (EPG) (Weigel, 2015) with RF phase φₙ = Δφ·n(n+1)/2.
 [EPGpp](https://github.com/mrphysics-bonn/EPGpp) TR by TR until the signal stops changing. t2greps computes the steady state
 directly. Following Ganter (2006), the magnetization at each dephasing order k is rotated by a phase
 that depends on n and k. Then every TR applies the same map x ↦ Mx + b, and the steady state is
-x = (I − M)⁻¹b. It is computed by a recursion from K = max(16, ⌈12·T2/TR⌉) down to k = 0, with a
-relative error below 1e-11.
+x = (I − M)⁻¹b. It is computed by a recursion from K = max(16, ⌈12·T2/TR⌉) down to k = 0. Over flip angles
+3–90°, increments 0.5–20°, TR 3–50 ms, T2 5–1000 ms and T1 up to 10000 ms the relative error was below 2e-11.
 
 A follows in closed form for given T1 and T2. T1 and T2 are fitted with Levenberg–Marquardt (Marquardt, 1963) and exact
 derivatives, with voxels in parallel.
