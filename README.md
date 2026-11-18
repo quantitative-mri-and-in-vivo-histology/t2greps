@@ -5,7 +5,7 @@ magnitude and phase of GRE images acquired with several quadratic RF phase incre
 
 A replacement for [MagPhsT2](https://github.com/mrphysics-bonn/MagPhsT2) (`T2T1AM.py`). It uses the same
 signal model, data, start values and bounds, and computes the steady state exactly instead of
-simulating TR by TR.
+simulating TR by TR. This reduces the fitting time from hours to minutes, or even seconds.
 
 ## Install
 
